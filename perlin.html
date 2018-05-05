@@ -1,0 +1,19 @@
+<html>
+<body>
+<canvas id="canvas" width="500" height="500"></canvas>
+<div>
+    <button type="button" onclick="regenPerlinB();draw();">Regen</button><br/>
+    <label>Coloring:</label>
+    <select id="colortype" onchange="draw();">
+        <option value="RGB">RGB</option>
+        <option value="BEST">Best</option>
+        <option value="1">Crosshatch 1</option>
+        <option value="2">Crosshatch 2</option>
+        <option value="3">Crosshatch 3</option>
+        <option value="4">Crosshatch 4</option>
+    </select>
+    <br/>
+</div>
+<script src="perlin.js"> </script>
+</body>
+</html>
