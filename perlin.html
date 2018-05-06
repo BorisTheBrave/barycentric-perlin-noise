@@ -3,6 +3,13 @@
 <canvas id="canvas" width="500" height="500"></canvas>
 <div>
     <button type="button" onclick="regenPerlinB();draw();">Regen</button><br/>
+    <label>Type:</label>
+    <select id="type" onchange="regenPerlinB();draw();" value="1">
+        <option value="Normal">Normal</option>
+        <option value="1">Type 1</option>
+        <option value="2">Type 2</option>
+    </select>
+    <br/>
     <label>Coloring:</label>
     <select id="colortype" onchange="draw();">
         <option value="RGB">RGB</option>

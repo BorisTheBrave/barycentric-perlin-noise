@@ -125,6 +125,19 @@ function cross(v: Vector): Vector
 
 function regenPerlinB()
 {
+    let typeSelect = <HTMLSelectElement>document.getElementById("type");
+    INDEP_AXES = false;
+    SECOND_GEN = false;    
+    switch(typeSelect.value)
+    {
+        case "Normal":
+            INDEP_AXES = true;
+            break;
+        case "2":
+            SECOND_GEN = true;
+            break;
+    }
+
     gradientB = [];
     for(let x=0; x < 100;x++) {
         gradientB[x] = [];
@@ -232,6 +245,7 @@ function draw()
             break;
             
     }
+    
 
     var c = <HTMLCanvasElement>document.getElementById("canvas");
     var ctx = c.getContext("2d");
