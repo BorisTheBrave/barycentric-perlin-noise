@@ -129,7 +129,7 @@ class BarycentricPerlin
     }
 }
 
-type Style = "RGB" | "BEST" | "CROSSHATCH";
+type Style = "RGB" | "TEXTURE" | "BEST" | "CROSSHATCH";
 
 class CrosshatchSettings
 {
@@ -138,6 +138,31 @@ class CrosshatchSettings
     width: number;
     threshold: number;
 }
+
+function getData(img: HTMLImageElement)
+{
+    var canvas = document.createElement('canvas');
+    var context = canvas.getContext('2d');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    context.drawImage(img, 0, 0 );
+    return context.getImageData(0, 0, img.width, img.height);
+}
+
+var grass = new Image();
+var grassData: ImageData;
+grass.addEventListener("load", () => grassData = getData(grass));
+grass.src="Grass.jpg";
+
+var water = new Image();
+var waterData: ImageData;
+water.addEventListener("load", () => waterData = getData(water));
+water.src="Water.jpg";
+
+var sand = new Image();
+var sandData: ImageData;
+sand.addEventListener("load", () => sandData = getData(sand));
+sand.src="Sand.png";
 
 function drawPerlin(img: ImageData, 
     perlin: BarycentricPerlin,
@@ -205,14 +230,37 @@ function drawPerlin(img: ImageData,
             // Color according to which component is largest
             v = [v[0] == m ? 1 : 0, v[1] == m ? 1 : 0, v[2] == m ? 1 : 0];
         }
-        img.data[p + 0] = (v[0] + 1) * 128;
-        img.data[p + 1] = (v[1] + 1) * 128;
-        img.data[p + 2] = (v[2] + 1) * 128;
-        img.data[p + 3] = 255;
+        if (style != "TEXTURE")
+        {
+            img.data[p + 0] = (v[0] + 1) * 128;
+            img.data[p + 1] = (v[1] + 1) * 128;
+            img.data[p + 2] = (v[2] + 1) * 128;
+            img.data[p + 3] = 255;
+        }else{
+            if(grassData && waterData && sandData)
+            {
+                let grassP = (x + y * grassData.width) * 4;
+                let waterP = (x + y * waterData.width) * 4;
+                let sandP = (x + y * sandData.width) * 4;
+                for(let c=0;c<3;c++)
+                {
+                    let v1 = Math.max(v[0] * 8 + 1, 0);
+                    let v2 = Math.max(v[1] * 8 + 1, 0);
+                    let v3 = Math.max(v[2] * 8 + 1, 0);
+                    let total = v1 + v2 + v3;
+                    img.data[p + c] = 
+                        v1 / total * sandData.data[sandP + c] +
+                        v2 / total * grassData.data[grassP + c] +
+                        v3 / total * waterData.data[waterP + c];
+                }
+                img.data[p + 3] = 255;
+            }
+        }
         p += 4;
         
     }
 }
+
 
 var perlin = new BarycentricPerlin();
 
@@ -234,7 +282,6 @@ function regenPerlin()
     perlin.regen();
 }
 
-
 function draw()
 {
     // load paramters
@@ -250,6 +297,9 @@ function draw()
     {
         case "RGB":
             style = "RGB";
+            break;
+        case "TEXTURE":
+            style = "TEXTURE";
             break;
         case "BEST":
             style = "BEST"
