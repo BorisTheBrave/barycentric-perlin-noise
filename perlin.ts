@@ -52,7 +52,7 @@ class BarycentricPerlin
 {
     gradients: [Vector, Vector][][]
     offsets: Vector[][]
-    type: "INDEP_AXES" | "SINGLE_BARYCENTRIC" | "DOUBLE_BARYCENTRIC" | "POSITIVE" = "INDEP_AXES"
+    type: "INDEP_AXES" | "BARYCENTRIC_VARIANT" | "BARYCENTRIC" = "INDEP_AXES"
 
     regen(): void
     {
@@ -71,8 +71,7 @@ class BarycentricPerlin
                     this.gradients[x][y] = [[t1[0], t2[0], t3[0]], [t1[1], t2[1], t3[1]]];
                     this.offsets[x][y] = [0, 0, 0];
                     break;
-                case "SINGLE_BARYCENTRIC":
-                case "DOUBLE_BARYCENTRIC":
+                case "BARYCENTRIC_VARIANT":
                 {
                     let angle = Math.random() * 2 * Math.PI;
                     let s = Math.sin(angle);
@@ -80,18 +79,9 @@ class BarycentricPerlin
                     let t:Vector = randomTangentB();
                     this.gradients[x][y] = [scale(s, t), scale(c, t)];
                     this.offsets[x][y] = [0, 0, 0];
-                    if(this.type == "DOUBLE_BARYCENTRIC")
-                    {
-                        t = cross(t);
-                        let angle = Math.random() * 2 * Math.PI;
-                        let s = Math.sin(angle);
-                        let c = Math.cos(angle);
-                        let g = this.gradients[x][y];
-                        this.gradients[x][y] = [scale(1 / Math.sqrt(2), add(g[0], scale(s, t))), scale(1/ Math.sqrt(2), add(g[1], scale(c, t)))];
-                    }
                     break;
                 }
-                case "POSITIVE":
+                case "BARYCENTRIC":
                 {
                     let t:Vector = randomTangentB();
                     let maxL = Number.POSITIVE_INFINITY;
@@ -185,37 +175,15 @@ class CrosshatchSettings
     threshold: number;
 }
 
-function getData(img: HTMLImageElement)
-{
-    var canvas = document.createElement('canvas');
-    var context = canvas.getContext('2d');
-    canvas.width = img.width;
-    canvas.height = img.height;
-    context.drawImage(img, 0, 0 );
-    return context.getImageData(0, 0, img.width, img.height);
-}
-
-var grass = new Image();
-var grassData: ImageData;
-grass.addEventListener("load", () => grassData = getData(grass));
-grass.src="Grass.jpg";
-
-var water = new Image();
-var waterData: ImageData;
-water.addEventListener("load", () => waterData = getData(water));
-water.src="Water.jpg";
-
-var sand = new Image();
-var sandData: ImageData;
-sand.addEventListener("load", () => sandData = getData(sand));
-sand.src="Sand.png";
-
 function drawPerlin(img: ImageData, 
     perlin: BarycentricPerlin,
     width: number, height: number, 
     tilesize: number,
     style: Style,
-    crosshatchSettings?: CrosshatchSettings)
+    crosshatchSettings?: CrosshatchSettings,
+    texture1?: ImageData,
+    texture2?: ImageData,
+    texture3?: ImageData)
 {
     let p=0;
     for(let y=0;y<height;y++)
@@ -230,7 +198,7 @@ function drawPerlin(img: ImageData,
             // Even in RGB mode we increase the contract a bit as perlin noise
             // otherwise is kinda bland.
             let contrast = style == "TEXTURE" ? 20 : 3;
-            if(perlin.type == "POSITIVE")
+            if(perlin.type == "BARYCENTRIC")
             {
                 // Bump up the contrast for good effects
                 v = shift(1/3, scale(contrast, shift(-1/3, v)));
@@ -297,11 +265,11 @@ function drawPerlin(img: ImageData,
             img.data[p + 2] = v[2];
             img.data[p + 3] = 255;
         }else{
-            if(grassData && waterData && sandData)
+            if(texture1 && texture2 && texture3)
             {
-                let grassP = (x + y * grassData.width) * 4;
-                let waterP = (x + y * waterData.width) * 4;
-                let sandP = (x + y * sandData.width) * 4;
+                let texture1P = (x + y * texture1.width) * 4;
+                let texture2P = (x + y * texture2.width) * 4;
+                let texture3P = (x + y * texture3.width) * 4;
                 for(let c=0;c<3;c++)
                 {
                     let v1 = Math.max(v[0], 0);
@@ -309,9 +277,9 @@ function drawPerlin(img: ImageData,
                     let v3 = Math.max(v[2], 0);
                     let total = v1 + v2 + v3;
                     img.data[p + c] = 
-                        v1 / total * sandData.data[sandP + c] +
-                        v2 / total * grassData.data[grassP + c] +
-                        v3 / total * waterData.data[waterP + c];
+                        v1 / total * texture1.data[texture1P + c] +
+                        v2 / total * texture2.data[texture2P + c] +
+                        v3 / total * texture3.data[texture3P + c];
                 }
                 img.data[p + 3] = 255;
             }
@@ -324,6 +292,10 @@ function drawPerlin(img: ImageData,
 
 var perlin = new BarycentricPerlin();
 
+let grassData: ImageData;
+let waterData: ImageData;
+let sandData: ImageData;
+
 function regenPerlin()
 {
     let typeSelect = <HTMLSelectElement>document.getElementById("type");
@@ -332,14 +304,11 @@ function regenPerlin()
         case "independent":
             perlin.type = "INDEP_AXES";
             break;
-        case "single":
-            perlin.type = "SINGLE_BARYCENTRIC";
+        case "barycentric_variant":
+            perlin.type = "BARYCENTRIC_VARIANT";
             break;
-        case "double":
-            perlin.type = "DOUBLE_BARYCENTRIC";
-            break;
-        case "positive":
-            perlin.type = "POSITIVE";
+        case "barycentric":
+            perlin.type = "BARYCENTRIC";
             break;
     }
     perlin.regen();
@@ -399,10 +368,35 @@ function draw()
     let tilesize = 100;
 
     var img = ctx.createImageData(width, height);
-    drawPerlin(img, perlin, width, height, tilesize, style, crosshatchSettings);
+    drawPerlin(img, perlin, width, height, tilesize, style, crosshatchSettings, sandData, grassData, waterData);
     
     ctx.putImageData(img, 0, 0);
 }
 
-regenPerlin();
-draw();
+function init(path: string)
+{
+    function getData(img: HTMLImageElement)
+    {
+        var canvas = document.createElement('canvas');
+        var context = canvas.getContext('2d');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        context.drawImage(img, 0, 0 );
+        return context.getImageData(0, 0, img.width, img.height);
+    }
+    
+    var grass = new Image();
+    grass.addEventListener("load", () => grassData = getData(grass));
+    grass.src = path + "grass_small.jpg";
+    
+    var water = new Image();
+    water.addEventListener("load", () => waterData = getData(water));
+    water.src = path + "water_small.jpg";
+    
+    var sand = new Image();
+    sand.addEventListener("load", () => sandData = getData(sand));
+    sand.src = path + "sand_small.jpg";
+
+    regenPerlin();
+    draw();
+}

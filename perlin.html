@@ -6,9 +6,8 @@
     <label>Type:</label>
     <select id="type" onchange="regenPerlin();draw();">
         <option value="independent">Independent</option>
-        <option value="single" selected="true">Single</option>
-        <option value="double">Double</option>
-        <option value="positive">Positive</option>
+        <option value="barycentric_variant">Barycentric Variant</option>
+        <option value="barycentric" selected="true">Barycentric</option>
     </select>
     <br/>
     <label>Coloring:</label>
@@ -24,5 +23,8 @@
     <br/>
 </div>
 <script src="perlin.js"> </script>
+<script>
+    init("");
+</script>
 </body>
 </html>
