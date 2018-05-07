@@ -7,7 +7,7 @@ function add(v1: Vector, v2: Vector):Vector
 
 function scale(s: number, v: Vector): Vector
 {
-    return [s*v[0], s*v[1], s*v[2]]
+    return [s*v[0], s*v[1], s*v[2]];
 }
 
 function cross(v: Vector): Vector
@@ -17,6 +17,11 @@ function cross(v: Vector): Vector
         v[2] - v[0],
         v[0] - v[1],
     ]);
+}
+
+function shift(s: number, v: Vector): Vector
+{
+    return [s + v[0], s + v[1], s + v[2]];
 }
 
 function randomTangent(): [number, number]
@@ -46,26 +51,35 @@ function randomTangentB():Vector
 class BarycentricPerlin
 {
     gradients: [Vector, Vector][][]
-    type: "INDEP_AXES" | "SINGLE_BARYCENTRIC" | "DOUBLE_BARYCENTRIC" = "INDEP_AXES"
+    offsets: Vector[][]
+    type: "INDEP_AXES" | "SINGLE_BARYCENTRIC" | "DOUBLE_BARYCENTRIC" | "POSITIVE" = "INDEP_AXES"
 
     regen(): void
     {
         this.gradients = [];
+        this.offsets = [];
         for(let x=0; x < 100;x++) {
             this.gradients[x] = [];
+            this.offsets[x] = [];
             for(let y=0; y < 100;y++) {
-                if(this.type == "INDEP_AXES")
+                switch(this.type)
                 {
+                case "INDEP_AXES":
                     let t1 = randomTangent();
                     let t2 = randomTangent();
                     let t3 = randomTangent();
                     this.gradients[x][y] = [[t1[0], t2[0], t3[0]], [t1[1], t2[1], t3[1]]];
-                }else{
+                    this.offsets[x][y] = [0, 0, 0];
+                    break;
+                case "SINGLE_BARYCENTRIC":
+                case "DOUBLE_BARYCENTRIC":
+                {
                     let angle = Math.random() * 2 * Math.PI;
                     let s = Math.sin(angle);
                     let c = Math.cos(angle);
                     let t:Vector = randomTangentB();
                     this.gradients[x][y] = [scale(s, t), scale(c, t)];
+                    this.offsets[x][y] = [0, 0, 0];
                     if(this.type == "DOUBLE_BARYCENTRIC")
                     {
                         t = cross(t);
@@ -74,8 +88,40 @@ class BarycentricPerlin
                         let c = Math.cos(angle);
                         let g = this.gradients[x][y];
                         this.gradients[x][y] = [scale(1 / Math.sqrt(2), add(g[0], scale(s, t))), scale(1/ Math.sqrt(2), add(g[1], scale(c, t)))];
-                        
                     }
+                    break;
+                }
+                case "POSITIVE":
+                {
+                    let t:Vector = randomTangentB();
+                    let maxL = Number.POSITIVE_INFINITY;
+                    let minL = Number.NEGATIVE_INFINITY;
+                    for(let i=0;i<3;i++)
+                    {
+                        if(t[i] != 0)
+                        {
+                            let l = -1/3 / t[i];
+                            if(l < 0)
+                            {
+                                minL = Math.max(minL, l);
+                            }else{
+                                maxL = Math.min(maxL, l);
+                            }
+                        }
+                    }
+                    if(maxL < minL)
+                        throw new Error();
+                    let center = (minL + maxL) / 2;
+                    let halfWidth = (maxL - minL) / 2;
+                    let offset = shift(1 / 3, scale(center, t))
+                    t = scale(halfWidth, t);
+
+                    let angle = Math.random() * 2 * Math.PI;
+                    let s = Math.sin(angle);
+                    let c = Math.cos(angle);
+                    this.gradients[x][y] = [scale(s, t), scale(c, t)];
+                    this.offsets[x][y] = offset;
+                }
                 }
             }
         }
@@ -95,7 +141,7 @@ class BarycentricPerlin
         let dx = x - ix;
         let dy = y - iy;
         let g = this.gradients[ix][iy];
-        return add(scale(dx, g[0]), scale(dy, g[1]));
+        return add(add(scale(dx, g[0]), scale(dy, g[1])), this.offsets[ix][iy]);
     }
     
     // Compute Perlin noise at coordinates x, y
@@ -178,15 +224,29 @@ function drawPerlin(img: ImageData,
         // Slight offset to avoid integer co-ordinates,
         // as those look bad when taking the best color.
         let v = perlin.eval((x + 0.5) / tilesize, (y+0.5) / tilesize);
-        v = scale(3, v)
-        if (style == "RGB") 
+        if (style == "RGB" || style == "TEXTURE") 
         {
-            // Do nothing
+            // Use a high contrast for textures to keep the blend regions small
+            // Even in RGB mode we increase the contract a bit as perlin noise
+            // otherwise is kinda bland.
+            let contrast = style == "TEXTURE" ? 20 : 3;
+            if(perlin.type == "POSITIVE")
+            {
+                // Bump up the contrast for good effects
+                v = shift(1/3, scale(contrast, shift(-1/3, v)));
+                // Move into color space from range [0, 1]
+                v = scale(256, v);
+            } else {
+                // Bump up the contrast for good effects
+                v = scale(contrast, v);
+                // Move into color space from range [-1, 1]
+                v = scale(128, shift(1, v));
+            }
         }
         else if (style == "BEST")
         {
             let m = Math.max(...v);
-            v = [v[0] == m ? 1 : 0, v[1] == m ? 1 : 0, v[2] == m ? 1 : 0];
+            v = [v[0] == m ? 255 : 128, v[1] == m ? 255 : 128, v[2] == m ? 255 : 128];
         }
         else if (style == "CROSSHATCH")
         {
@@ -228,13 +288,13 @@ function drawPerlin(img: ImageData,
                 m = crossed ? m2 : m1;
             }
             // Color according to which component is largest
-            v = [v[0] == m ? 1 : 0, v[1] == m ? 1 : 0, v[2] == m ? 1 : 0];
+            v = [v[0] == m ? 255 : 128, v[1] == m ? 255 : 128, v[2] == m ? 255 : 128];
         }
         if (style != "TEXTURE")
         {
-            img.data[p + 0] = (v[0] + 1) * 128;
-            img.data[p + 1] = (v[1] + 1) * 128;
-            img.data[p + 2] = (v[2] + 1) * 128;
+            img.data[p + 0] = v[0];
+            img.data[p + 1] = v[1];
+            img.data[p + 2] = v[2];
             img.data[p + 3] = 255;
         }else{
             if(grassData && waterData && sandData)
@@ -244,9 +304,9 @@ function drawPerlin(img: ImageData,
                 let sandP = (x + y * sandData.width) * 4;
                 for(let c=0;c<3;c++)
                 {
-                    let v1 = Math.max(v[0] * 8 + 1, 0);
-                    let v2 = Math.max(v[1] * 8 + 1, 0);
-                    let v3 = Math.max(v[2] * 8 + 1, 0);
+                    let v1 = Math.max(v[0], 0);
+                    let v2 = Math.max(v[1], 0);
+                    let v3 = Math.max(v[2], 0);
                     let total = v1 + v2 + v3;
                     img.data[p + c] = 
                         v1 / total * sandData.data[sandP + c] +
@@ -278,6 +338,9 @@ function regenPerlin()
         case "double":
             perlin.type = "DOUBLE_BARYCENTRIC";
             break;
+        case "positive":
+            perlin.type = "POSITIVE";
+            break;
     }
     perlin.regen();
 }
@@ -290,7 +353,7 @@ function draw()
     let crosshatchSettings: CrosshatchSettings = {
         diamonds: false,
         thin: false,
-        threshold: 0.1,
+        threshold: 0.03,
         width: 10,
     };
     switch(colorTypeSelect.value)
