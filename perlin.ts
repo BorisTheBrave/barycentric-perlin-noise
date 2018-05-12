@@ -68,7 +68,6 @@ export class BarycentricPerlin
             this.gradients[x] = [];
             this.offsets[x] = [];
             for(let y=0; y <= this.height; y++) {
-                console.log("regen", x, y);
                 switch(this.type)
                 {
                 case "INDEP_AXES":

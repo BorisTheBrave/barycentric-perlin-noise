@@ -73,17 +73,23 @@ export function draw()
     
     var c = <HTMLCanvasElement>document.getElementById("canvas");
     var ctx = c.getContext("2d");
-    ctx.font = "30px Arial";
-    ctx.fillText("Loading...", 10, 50); 
 
-    var img = ctx.createImageData(width, height);
-    drawPerlin(img, perlin, width, height, tilesize, style, crosshatchSettings, textureData[0], textureData[1], textureData[2]);
+    if(style == "TEXTURE" && !(textureData[0] && textureData[1] && textureData[2]))
+    {
+        ctx.font = "30px Arial";
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillText("Loading...", 10, 50); 
+    }else{
+        var img = ctx.createImageData(width, height);
+        drawPerlin(img, perlin, width, height, tilesize, style, crosshatchSettings, textureData[0], textureData[1], textureData[2]);
+        ctx.putImageData(img, 0, 0);
+    }
     
-    ctx.putImageData(img, 0, 0);
 }
 
 export function init(path: string)
 {
+    let loadedCount = 0;
     function load(img: HTMLImageElement, index: number)
     {
         var canvas = document.createElement('canvas');
@@ -92,6 +98,11 @@ export function init(path: string)
         canvas.height = img.height;
         context.drawImage(img, 0, 0 );
         textureData[index] = context.getImageData(0, 0, img.width, img.height);
+        loadedCount += 1;
+        let colorTypeSelect = <HTMLSelectElement>document.getElementById("colortype");
+        if(loadedCount == 3 && colorTypeSelect.value == "TEXTURE") {
+            draw();
+        }
     }
 
     var grass = new Image();
