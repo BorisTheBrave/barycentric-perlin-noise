@@ -1,7 +1,11 @@
 import { BarycentricPerlin } from './perlin'
 import { drawPerlin, Style, CrosshatchSettings } from './drawing'
 
-var perlin = new BarycentricPerlin();
+let width = 500;
+let height = 500;
+let tilesize = 100;
+
+var perlin = new BarycentricPerlin(3, Math.floor(width / tilesize) + 1, Math.floor(height/ tilesize) + 1);
 
 let textureData: ImageData[] = [];
 
@@ -71,10 +75,6 @@ export function draw()
     var ctx = c.getContext("2d");
     ctx.font = "30px Arial";
     ctx.fillText("Loading...", 10, 50); 
-
-    let width = 500;
-    let height = 500;
-    let tilesize = 100;
 
     var img = ctx.createImageData(width, height);
     drawPerlin(img, perlin, width, height, tilesize, style, crosshatchSettings, textureData[0], textureData[1], textureData[2]);

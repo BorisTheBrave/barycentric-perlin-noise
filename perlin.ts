@@ -1,27 +1,20 @@
-export type Vector = [number, number, number]
+// In the following code, the length of Vectors is always n,
+// the number of output dimensions for the barcentric noise
+export type Vector = number[];
 
 export function add(v1: Vector, v2: Vector):Vector
 {
-    return [v1[0] + v2[0], v1[1] + v2[1], v1[2] + v2[2]];
+    return v1.map((value, index) => v1[index] + v2[index])
 }
 
 export function scale(s: number, v: Vector): Vector
 {
-    return [s*v[0], s*v[1], s*v[2]];
-}
-
-export function cross(v: Vector): Vector
-{
-    return scale(1/Math.sqrt(3), [
-        v[1] - v[2],
-        v[2] - v[0],
-        v[0] - v[1],
-    ]);
+    return v.map(value => s * value);
 }
 
 export function shift(s: number, v: Vector): Vector
 {
-    return [s + v[0], s + v[1], s + v[2]];
+    return v.map(value => s + value);
 }
 
 function randomTangent(): [number, number]
@@ -32,65 +25,87 @@ function randomTangent(): [number, number]
     return [s, c]
 }
 
-function randomTangentB():Vector
+// Chooses a random barycentric gradient.
+// NB: This gets less efficient for higher n,
+// there's proabably a better way to do this.
+function randomTangentB(n: number):Vector
 {
     while(true)
     {
-        let x = Math.random() * 2 - 1;
-        let y = Math.random() * 2 - 1;
-        let z = -x - y;
-        let d2 = x*x + y*y + z*z;
+        let v = new Array(n);
+        let sum = 0;
+        for(let i=0; i<n-1; i++) 
+        {
+            v[i] = Math.random() * 2 - 1;
+            sum += v[i];
+        }
+        v[n-1] = -sum;
+        let d2 = v.map(x => x*x).reduce((a, b) => a + b, 0);
         if(d2 <= 1)
         {
             let d = Math.sqrt(d2)
-            return [x / d, y / d, z / d];
+            return v.map(x => x / d);
         }
     }
 }
 
+export type BarycentricPerlinType = "INDEP_AXES" | "BARYCENTRIC_VARIANT" | "BARYCENTRIC";
+
 export class BarycentricPerlin
 {
-    gradients: [Vector, Vector][][]
-    offsets: Vector[][]
-    type: "INDEP_AXES" | "BARYCENTRIC_VARIANT" | "BARYCENTRIC" = "INDEP_AXES"
+    gradients: [Vector, Vector][][];
+    offsets: Vector[][];
+
+    constructor(public n: number, public width: number, public height: number, public type: BarycentricPerlinType = "BARYCENTRIC")
+    {
+    }
 
     regen(): void
     {
         this.gradients = [];
         this.offsets = [];
-        for(let x=0; x < 100;x++) {
+        for(let x=0; x <= this.width; x++) {
             this.gradients[x] = [];
             this.offsets[x] = [];
-            for(let y=0; y < 100;y++) {
+            for(let y=0; y <= this.height; y++) {
+                console.log("regen", x, y);
                 switch(this.type)
                 {
                 case "INDEP_AXES":
-                    let t1 = randomTangent();
-                    let t2 = randomTangent();
+                    let t = new Array(this.n);
+                    let o = new Array(this.n);
+                    for(let i=0;i<this.n;i++) {
+                        t[i] = randomTangent();
+                        o[i] = 0;
+                    }
                     let t3 = randomTangent();
-                    this.gradients[x][y] = [[t1[0], t2[0], t3[0]], [t1[1], t2[1], t3[1]]];
-                    this.offsets[x][y] = [0, 0, 0];
+                    this.gradients[x][y] = [t.map(x => x[0]), t.map(x => x[1])];
+                    this.offsets[x][y] = o;
                     break;
                 case "BARYCENTRIC_VARIANT":
                 {
+                    let o = new Array(this.n);
+                    for(let i=0;i<this.n;i++) {
+                        o[i] = 0;
+                    }
                     let angle = Math.random() * 2 * Math.PI;
                     let s = Math.sin(angle);
                     let c = Math.cos(angle);
-                    let t:Vector = randomTangentB();
+                    let t:Vector = randomTangentB(this.n);
                     this.gradients[x][y] = [scale(s, t), scale(c, t)];
-                    this.offsets[x][y] = [0, 0, 0];
+                    this.offsets[x][y] = o;
                     break;
                 }
                 case "BARYCENTRIC":
                 {
-                    let t:Vector = randomTangentB();
+                    let t:Vector = randomTangentB(this.n);
                     let maxL = Number.POSITIVE_INFINITY;
                     let minL = Number.NEGATIVE_INFINITY;
-                    for(let i=0;i<3;i++)
+                    for(let i=0;i<this.n;i++)
                     {
                         if(t[i] != 0)
                         {
-                            let l = -1/3 / t[i];
+                            let l = -1/this.n / t[i];
                             if(l < 0)
                             {
                                 minL = Math.max(minL, l);
@@ -103,7 +118,7 @@ export class BarycentricPerlin
                         throw new Error();
                     let center = (minL + maxL) / 2;
                     let halfWidth = (maxL - minL) / 2;
-                    let offset = shift(1 / 3, scale(center, t))
+                    let offset = shift(1 / this.n, scale(center, t))
                     t = scale(halfWidth, t);
 
                     let angle = Math.random() * 2 * Math.PI;
