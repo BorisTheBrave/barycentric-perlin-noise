@@ -2,16 +2,16 @@
 <body>
 <canvas id="canvas" width="500" height="500"></canvas>
 <div>
-    <button type="button" onclick="regenPerlin();draw();">Regen</button><br/>
+    <button type="button" onclick="Demo.regenPerlin();Demo.draw();">Regen</button><br/>
     <label>Type:</label>
-    <select id="type" onchange="regenPerlin();draw();">
+    <select id="type" onchange="Demo.regenPerlin();Demo.draw();">
         <option value="independent">Independent</option>
         <option value="barycentric_variant">Barycentric Variant</option>
         <option value="barycentric" selected="true">Barycentric</option>
     </select>
     <br/>
     <label>Coloring:</label>
-    <select id="colortype" onchange="draw();">
+    <select id="colortype" onchange="Demo.draw();">
         <option value="RGB">RGB</option>
         <option value="TEXTURE">Texture</option>
         <option value="BEST">Best</option>
@@ -22,9 +22,9 @@
     </select>
     <br/>
 </div>
-<script src="perlin.js"> </script>
+<script src="built/demo_bundle.js"> </script>
 <script>
-    init("");
+    Demo.init("");
 </script>
 </body>
 </html>

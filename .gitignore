@@ -1,3 +1,5 @@
 /*.map
 /*.js
 /.vscode
+/built
+/node_modules
