@@ -4,7 +4,7 @@ Barycentric Perlin Noise
 This code generates perlin noise with n dimensions of output such that the component sum is a constant. This is useful for
 blending together n textures or assigning n biomes.
 
-An explanation and demo can be found at https://www.boristhebrave.com/
+An explanation and demo can be found at https://www.boristhebrave.com/2018/05/12/barycentric-perlin-noise/
 
 Usage
 -----
